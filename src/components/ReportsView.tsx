@@ -1,238 +1,195 @@
 import React from 'react';
-import { 
-  BarChart3, 
-  Download, 
-  CheckCircle2, 
-  AlertTriangle, 
-  Clock, 
-  TrendingUp, 
-  Users, 
-  FolderKanban,
-  FileSpreadsheet,
-  FileCode
-} from 'lucide-react';
-import { Task } from '../types/task';
+import { Task, TaskPriority } from '../types';
+import { TEAM_MEMBERS } from '../data/initialData';
+import { BarChart3, TrendingUp, CheckCircle, Clock, AlertTriangle, Download, ShieldCheck } from 'lucide-react';
 
 interface ReportsViewProps {
   tasks: Task[];
-  onExportCSV: () => void;
-  onExportJSON: () => void;
+  onExportCsv: () => void;
 }
 
-export const ReportsView: React.FC<ReportsViewProps> = ({
-  tasks,
-  onExportCSV,
-  onExportJSON,
-}) => {
-  const total = tasks.length || 1;
+export const ReportsView: React.FC<ReportsViewProps> = ({ tasks, onExportCsv }) => {
+  const total = tasks.length;
   const completed = tasks.filter((t) => t.status === 'เสร็จสิ้น').length;
   const inProgress = tasks.filter((t) => t.status === 'กำลังดำเนินการ').length;
   const overdue = tasks.filter((t) => t.status === 'เกินกำหนด').length;
-  const pending = tasks.filter((t) => t.status === 'รอดำเนินการ' || t.status === 'ยังไม่เริ่ม').length;
+  const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-  const completionRate = Math.round((completed / total) * 100);
-
-  // Group by project
-  const projects = [
-    'โครงการพัฒนาระบบติดตาม',
-    'โครงการทดสอบระบบ',
-    'โครงการอบรม/พัฒนา',
-    'โครงการวิจัยและพัฒนา',
+  const priorities: { name: TaskPriority; label: string; color: string; badgeColor: string }[] = [
+    { name: 'สูง', label: 'ความสำคัญ: สูง', color: 'text-rose-600', badgeColor: 'bg-rose-50 text-rose-700 border border-rose-200' },
+    { name: 'ปานกลาง', label: 'ความสำคัญ: ปานกลาง', color: 'text-amber-600', badgeColor: 'bg-amber-50 text-amber-700 border border-amber-200' },
+    { name: 'ต่ำ', label: 'ความสำคัญ: ต่ำ', color: 'text-emerald-600', badgeColor: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
   ];
 
-  const projectStats = projects.map((p) => {
-    const projTasks = tasks.filter((t) => t.project === p);
-    const count = projTasks.length;
-    const projDone = projTasks.filter((t) => t.status === 'เสร็จสิ้น').length;
-    const projOverdue = projTasks.filter((t) => t.status === 'เกินกำหนด').length;
-    const rate = count > 0 ? Math.round((projDone / count) * 100) : 0;
-    return { name: p, total: count, done: projDone, overdue: projOverdue, rate };
-  });
-
-  // Group by assignee
-  const assignees = ['นาย A', 'นาย B', 'นางสาว C', 'นาย D', 'นางสาว E'];
-  const assigneeStats = assignees.map((a) => {
-    const userTasks = tasks.filter((t) => t.assignee === a);
-    const count = userTasks.length;
-    const done = userTasks.filter((t) => t.status === 'เสร็จสิ้น').length;
-    const overdueCount = userTasks.filter((t) => t.status === 'เกินกำหนด').length;
-    return { name: a, total: count, done, overdue: overdueCount };
-  });
-
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Title & Actions Bar */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
         <div>
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-blue-600" />
-            <span>รายงานและสถิติภาพรวมโครงการ (Project Analytics)</span>
+          <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+            รายงานและสถิติประสิทธิภาพการดำเนินงาน
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            สรุปการปฏิบัติงานทั้งหมด {total} งาน • ประเมินอัตราความสำเร็จและความล่าช้า
+            สรุปผลการดำเนินงานตามหนังสือและภารกิจ การส่งมอบงานตามกำหนด และสถิติรายบุคคล
           </p>
         </div>
+        <button
+          onClick={onExportCsv}
+          className="flex items-center gap-2 px-4 py-2 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors shadow-xs w-fit cursor-pointer"
+        >
+          <Download className="w-4 h-4" />
+          ส่งออกรายงาน (.CSV)
+        </button>
+      </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onExportCSV}
-            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold rounded-xl shadow-2xs transition-colors cursor-pointer"
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            <span>ดาวน์โหลด Excel/CSV</span>
-          </button>
-          <button
-            onClick={onExportJSON}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 transition-colors cursor-pointer"
-          >
-            <FileCode className="w-4 h-4 text-blue-600" />
-            <span>ดาวน์โหลด JSON</span>
-          </button>
+      {/* KPI Stats Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+          <div className="text-xs font-medium text-slate-500">อัตราความสำเร็จโดยรวม</div>
+          <div className="text-3xl font-bold font-mono text-emerald-600 mt-2">{completionRate}%</div>
+          <div className="text-[11px] text-slate-400 mt-1">{completed} จาก {total} รายการ</div>
+        </div>
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+          <div className="text-xs font-medium text-slate-500">รายการกำลังดำเนินการ</div>
+          <div className="text-3xl font-bold font-mono text-blue-600 mt-2">{inProgress}</div>
+          <div className="text-[11px] text-slate-400 mt-1">กำลังติดตามความคืบหน้า</div>
+        </div>
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+          <div className="text-xs font-medium text-slate-500">รายการเกินกำหนดสะสม</div>
+          <div className="text-3xl font-bold font-mono text-rose-600 mt-2">{overdue}</div>
+          <div className="text-[11px] text-rose-500 font-medium mt-1">ต้องได้รับการเร่งรัด</div>
+        </div>
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+          <div className="text-xs font-medium text-slate-500">ประสิทธิภาพการส่งมอบตรงเวลา</div>
+          <div className="text-3xl font-bold font-mono text-purple-600 mt-2">
+            {total > 0 ? Math.round(((total - overdue) / total) * 100) : 92}%
+          </div>
+          <div className="text-[11px] text-slate-400 mt-1">รายการส่งมอบทันตามแผน</div>
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase">อัตราความสำเร็จโดยรวม</span>
-            <TrendingUp className="w-4 h-4 text-emerald-600" />
-          </div>
-          <div className="text-3xl font-extrabold text-emerald-700 font-mono tabular-nums">
-            {completionRate}%
-          </div>
-          <div className="text-[11px] text-slate-500 mt-1">
-            เสร็จสิ้น {completed} จากทั้งหมด {total} งาน
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase">งานที่กำลังทำ (Active)</span>
-            <Clock className="w-4 h-4 text-blue-600" />
-          </div>
-          <div className="text-3xl font-extrabold text-blue-700 font-mono tabular-nums">
-            {inProgress} <span className="text-sm font-normal text-slate-500">งาน</span>
-          </div>
-          <div className="text-[11px] text-slate-500 mt-1">
-            กำลังดำเนินการตามกำหนด
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase">งานเกินกำหนด (Overdue)</span>
-            <AlertTriangle className="w-4 h-4 text-rose-600" />
-          </div>
-          <div className="text-3xl font-extrabold text-rose-600 font-mono tabular-nums">
-            {overdue} <span className="text-sm font-normal text-slate-500">งาน</span>
-          </div>
-          <div className="text-[11px] text-rose-600 mt-1 font-semibold">
-            ต้องการการติดตามอย่างเร่งด่วน
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase">รอดำเนินการ / ค้างคิว</span>
-            <Clock className="w-4 h-4 text-amber-500" />
-          </div>
-          <div className="text-3xl font-extrabold text-amber-600 font-mono tabular-nums">
-            {pending} <span className="text-sm font-normal text-slate-500">งาน</span>
-          </div>
-          <div className="text-[11px] text-slate-500 mt-1">
-            พร้อมเริ่มในรอบถัดไป
-          </div>
-        </div>
-      </div>
-
-      {/* Project Breakdown Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-slate-200/80 flex items-center justify-between">
-          <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-            <FolderKanban className="w-4 h-4 text-blue-600" />
-            <span>สรุปตามโครงการหลัก</span>
+      {/* Priority Breakdown Table */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        <div className="p-5 border-b border-slate-100">
+          <h3 className="font-bold text-slate-900 text-sm">
+            รายงานความคืบหน้าแยกตามระดับความสำคัญ
           </h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs sm:text-sm">
-            <thead>
-              <tr className="bg-slate-50/70 border-b border-slate-200 text-slate-600 font-semibold">
-                <th className="py-3 px-4">ชื่อโครงการ</th>
-                <th className="py-3 px-4 text-center">งานทั้งหมด</th>
-                <th className="py-3 px-4 text-center">เสร็จสิ้น</th>
-                <th className="py-3 px-4 text-center">เกินกำหนด</th>
-                <th className="py-3 px-4 min-w-[160px]">ความก้าวหน้า</th>
+          <table className="w-full text-xs text-left">
+            <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200">
+              <tr>
+                <th className="py-3 px-5">ระดับความสำคัญ</th>
+                <th className="py-3 px-5 text-center">รายการทั้งหมด</th>
+                <th className="py-3 px-5 text-center">เสร็จสิ้น</th>
+                <th className="py-3 px-5 text-center">กำลังทำ</th>
+                <th className="py-3 px-5 text-center">เกินกำหนด</th>
+                <th className="py-3 px-5">ความก้าวหน้าเฉลี่ย</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {projectStats.map((p) => (
-                <tr key={p.name} className="hover:bg-slate-50/60">
-                  <td className="py-3 px-4 font-semibold text-slate-800">{p.name}</td>
-                  <td className="py-3 px-4 text-center font-mono tabular-nums text-slate-700">{p.total}</td>
-                  <td className="py-3 px-4 text-center font-mono tabular-nums text-emerald-700 font-bold">{p.done}</td>
-                  <td className="py-3 px-4 text-center font-mono tabular-nums text-rose-600 font-bold">{p.overdue}</td>
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
-                        <div
-                          className="bg-blue-600 h-full rounded-full"
-                          style={{ width: `${p.rate}%` }}
-                        />
-                      </div>
-                      <span className="font-mono text-xs font-semibold text-slate-700 w-10 text-right">
-                        {p.rate}%
+              {priorities.map((item, idx) => {
+                const pTasks = tasks.filter((t) => t.priority === item.name);
+                const pCompleted = pTasks.filter((t) => t.status === 'เสร็จสิ้น').length;
+                const pProgress = pTasks.filter((t) => t.status === 'กำลังดำเนินการ').length;
+                const pOverdue = pTasks.filter((t) => t.status === 'เกินกำหนด').length;
+                const avgProgress = pTasks.length > 0
+                  ? Math.round(pTasks.reduce((s, t) => s + t.progress, 0) / pTasks.length)
+                  : 0;
+
+                return (
+                  <tr key={idx} className="hover:bg-slate-50">
+                    <td className="py-3.5 px-5 font-semibold">
+                      <span className={`inline-block px-2.5 py-0.5 rounded text-xs ${item.badgeColor}`}>
+                        {item.label}
                       </span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="py-3.5 px-5 text-center font-mono font-semibold text-slate-700">
+                      {pTasks.length}
+                    </td>
+                    <td className="py-3.5 px-5 text-center font-mono text-emerald-600 font-medium">
+                      {pCompleted}
+                    </td>
+                    <td className="py-3.5 px-5 text-center font-mono text-blue-600 font-medium">
+                      {pProgress}
+                    </td>
+                    <td className="py-3.5 px-5 text-center font-mono text-rose-600 font-medium">
+                      {pOverdue}
+                    </td>
+                    <td className="py-3.5 px-5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-28 bg-slate-100 rounded-full h-2 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${
+                              item.name === 'สูง'
+                                ? 'bg-rose-500'
+                                : item.name === 'ปานกลาง'
+                                ? 'bg-amber-500'
+                                : 'bg-emerald-500'
+                            }`}
+                            style={{ width: `${avgProgress}%` }}
+                          />
+                        </div>
+                        <span className="font-mono text-slate-700 font-medium">{avgProgress}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Assignee Workload Breakdown */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-slate-200/80 flex items-center justify-between">
-          <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-            <Users className="w-4 h-4 text-indigo-600" />
-            <span>ภาระงานและความรับผิดชอบรายบุคคล</span>
+      {/* Team Performance Table */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        <div className="p-5 border-b border-slate-100">
+          <h3 className="font-bold text-slate-900 text-sm">
+            สถิติภาระงานและผลงานผู้รับผิดชอบหลัก
           </h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs sm:text-sm">
-            <thead>
-              <tr className="bg-slate-50/70 border-b border-slate-200 text-slate-600 font-semibold">
-                <th className="py-3 px-4">ผู้รับผิดชอบ</th>
-                <th className="py-3 px-4 text-center">งานในมือทั้งหมด</th>
-                <th className="py-3 px-4 text-center">เสร็จสิ้นแล้ว</th>
-                <th className="py-3 px-4 text-center">งานเกินกำหนด</th>
-                <th className="py-3 px-4 text-center">สถานะความพร้อม</th>
+          <table className="w-full text-xs text-left">
+            <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200">
+              <tr>
+                <th className="py-3 px-5">ผู้รับผิดชอบหลัก</th>
+                <th className="py-3 px-5">ตำแหน่ง / หน้าที่</th>
+                <th className="py-3 px-5">อีเมลองค์กร</th>
+                <th className="py-3 px-5 text-center">ภาระงานปัจจุบัน</th>
+                <th className="py-3 px-5 text-center">รายการที่เสร็จสิ้น</th>
+                <th className="py-3 px-5 text-center">สถานะ</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {assigneeStats.map((a) => (
-                <tr key={a.name} className="hover:bg-slate-50/60">
-                  <td className="py-3 px-4 font-semibold text-slate-800">{a.name}</td>
-                  <td className="py-3 px-4 text-center font-mono tabular-nums text-slate-700">{a.total} งาน</td>
-                  <td className="py-3 px-4 text-center font-mono tabular-nums text-emerald-700 font-bold">{a.done} งาน</td>
-                  <td className="py-3 px-4 text-center font-mono tabular-nums text-rose-600 font-bold">{a.overdue} งาน</td>
-                  <td className="py-3 px-4 text-center">
-                    <span
-                      className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                        a.overdue > 3
-                          ? 'bg-rose-100 text-rose-800'
-                          : a.overdue > 0
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-emerald-100 text-emerald-800'
-                      }`}
-                    >
-                      {a.overdue > 3 ? 'ภาระงานสูง' : a.overdue > 0 ? 'ปกติ (มีงานล่าช้า)' : 'ปฏิบัติงานราบรื่น'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {TEAM_MEMBERS.map((member, idx) => {
+                const userTasks = tasks.filter((t) => t.assignee === member.name);
+                const userDone = userTasks.filter((t) => t.status === 'เสร็จสิ้น').length;
+
+                return (
+                  <tr key={idx} className="hover:bg-slate-50">
+                    <td className="py-3.5 px-5 font-semibold text-slate-900 flex items-center gap-2">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full"
+                        style={{ backgroundColor: member.color }}
+                      />
+                      {member.name}
+                    </td>
+                    <td className="py-3.5 px-5 text-slate-600">{member.role}</td>
+                    <td className="py-3.5 px-5 text-slate-500 font-mono text-[11px]">{member.email}</td>
+                    <td className="py-3.5 px-5 text-center font-mono font-bold text-blue-700">
+                      {userTasks.length > 0 ? userTasks.length : member.activeCount}
+                    </td>
+                    <td className="py-3.5 px-5 text-center font-mono text-emerald-600 font-medium">
+                      {userDone}
+                    </td>
+                    <td className="py-3.5 px-5 text-center">
+                      <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded text-[11px] font-medium">
+                        ปฏิบัติงานปกติ
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

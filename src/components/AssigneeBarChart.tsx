@@ -1,106 +1,88 @@
 import React from 'react';
-import { Task } from '../types/task';
+import { Task } from '../types';
+import { TEAM_MEMBERS } from '../data/initialData';
 
 interface AssigneeBarChartProps {
   tasks: Task[];
-  selectedAssignee: string | null;
-  onSelectAssignee: (assignee: string | null) => void;
+  onSelectAssignee?: (name: string) => void;
 }
 
 export const AssigneeBarChart: React.FC<AssigneeBarChartProps> = ({
   tasks,
-  selectedAssignee,
   onSelectAssignee,
 }) => {
-  const assignees = [
-    { name: 'นาย A', color: '#1976d2', defaultCount: 18 },
-    { name: 'นาย B', color: '#2e7d32', defaultCount: 24 },
-    { name: 'นางสาว C', color: '#f59e0b', defaultCount: 16 },
-    { name: 'นาย D', color: '#7b1fa2', defaultCount: 12 },
-    { name: 'นางสาว E', color: '#00acc1', defaultCount: 8 },
-  ];
-
-  const chartData = assignees.map((a) => {
-    const userTasks = tasks.filter((t) => t.assignee === a.name);
-    // If user edited tasks, reflect live count, otherwise default
-    const count = userTasks.length > 0 ? userTasks.length : a.defaultCount;
+  const data = TEAM_MEMBERS.map((person) => {
+    const userTasks = tasks.filter((t) => t.assignee === person.name);
     return {
-      ...a,
-      count,
+      ...person,
+      count: userTasks.length > 0 ? userTasks.length : (person.activeCount || 0),
     };
   });
 
-  const maxVal = 30; // Max tick on y-axis matching screenshot
+  const maxCount = Math.max(...data.map((d) => d.count), 15);
+  const maxVal = Math.ceil(maxCount / 5) * 5;
+  const midVal = Math.round(maxVal / 2);
 
   return (
-    <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs h-full flex flex-col justify-between">
+    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between h-full">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-base font-bold text-slate-800 tracking-tight">
-          งานแยกตามผู้รับผิดชอบ
-        </h3>
-        {selectedAssignee && (
-          <button
-            onClick={() => onSelectAssignee(null)}
-            className="text-xs text-blue-600 hover:text-blue-700 font-medium cursor-pointer"
-          >
-            ล้างตัวกรอง
-          </button>
-        )}
+        <div>
+          <h3 className="text-base font-bold text-slate-900 tracking-tight">
+            งานแยกตามผู้รับผิดชอบ
+          </h3>
+          <p className="text-[11px] text-slate-400">ภาระงานของผู้รับผิดชอบหลักทั้ง 12 ท่าน</p>
+        </div>
+        <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">
+          {TEAM_MEMBERS.length} ท่าน
+        </span>
       </div>
 
-      <div className="relative flex-1 flex flex-col justify-end pt-6 pb-1">
-        {/* Y Axis Guide Lines */}
-        <div className="absolute inset-x-8 top-6 bottom-7 flex flex-col justify-between pointer-events-none">
-          <div className="border-b border-dashed border-slate-200 w-full flex items-center justify-between">
-            <span className="text-[10px] text-slate-400 font-mono -ml-6">30</span>
+      <div className="relative pt-4 pb-1 flex-1 flex flex-col justify-end">
+        {/* Y-axis ticks line & labels */}
+        <div className="absolute inset-x-0 inset-y-4 flex flex-col justify-between pointer-events-none text-[10px] font-mono text-slate-400">
+          <div className="flex items-center gap-2">
+            <span className="w-5 text-right">{maxVal}</span>
+            <div className="flex-1 border-b border-dashed border-slate-100" />
           </div>
-          <div className="border-b border-dashed border-slate-200 w-full flex items-center justify-between">
-            <span className="text-[10px] text-slate-400 font-mono -ml-6">20</span>
+          <div className="flex items-center gap-2">
+            <span className="w-5 text-right">{midVal}</span>
+            <div className="flex-1 border-b border-dashed border-slate-100" />
           </div>
-          <div className="border-b border-dashed border-slate-200 w-full flex items-center justify-between">
-            <span className="text-[10px] text-slate-400 font-mono -ml-6">10</span>
-          </div>
-          <div className="border-b border-slate-200 w-full flex items-center justify-between">
-            <span className="text-[10px] text-slate-400 font-mono -ml-6">0</span>
+          <div className="flex items-center gap-2">
+            <span className="w-5 text-right">0</span>
+            <div className="flex-1 border-b border-slate-200" />
           </div>
         </div>
 
-        {/* Bars Container */}
-        <div className="relative pl-6 pr-2 h-44 flex items-end justify-around gap-2 sm:gap-3 z-10">
-          {chartData.map((item) => {
-            const heightPct = Math.min(100, Math.max(5, (item.count / maxVal) * 100));
-            const isSelected = selectedAssignee === item.name;
-
+        {/* Bars Container - horizontally scrollable for 12 members with clean touch/mouse drag */}
+        <div className="ml-7 flex gap-2 items-end h-40 pt-4 z-10 overflow-x-auto pb-1 scrollbar-thin">
+          {data.map((item, idx) => {
+            const heightPercent = Math.min(100, (item.count / maxVal) * 100);
             return (
               <div
-                key={item.name}
-                onClick={() => onSelectAssignee(isSelected ? null : item.name)}
-                className="flex-1 flex flex-col items-center justify-end h-full group cursor-pointer"
+                key={idx}
+                onClick={() => onSelectAssignee?.(item.name)}
+                className="flex flex-col items-center justify-end h-full group cursor-pointer min-w-[46px] flex-1"
+                title={`${item.name}: ${item.count} รายการ`}
               >
-                {/* Value number on top of bar */}
-                <span className="text-xs font-bold text-slate-700 font-mono tabular-nums mb-1 transition-transform group-hover:-translate-y-0.5">
+                {/* Count number label above bar */}
+                <span className="text-xs font-mono font-semibold text-slate-700 mb-1 group-hover:text-blue-600 transition-colors">
                   {item.count}
                 </span>
 
                 {/* Vertical Bar */}
-                <div className="w-8 sm:w-10 max-w-full rounded-t-md transition-all duration-300 relative group-hover:opacity-90 overflow-hidden"
-                  style={{
-                    height: `${heightPct}%`,
-                    backgroundColor: item.color,
-                    boxShadow: isSelected ? '0 0 0 2px #3b82f6' : undefined,
-                  }}
-                >
-                  {/* Subtle top reflection */}
-                  <div className="w-full h-1 bg-white/20" />
+                <div className="w-full max-w-[28px] bg-slate-100 rounded-t-md overflow-hidden flex items-end h-full">
+                  <div
+                    className="w-full rounded-t-md transition-all duration-500 group-hover:brightness-95"
+                    style={{
+                      height: `${heightPercent}%`,
+                      backgroundColor: item.color,
+                    }}
+                  />
                 </div>
 
-                {/* Assignee Label */}
-                <span
-                  className={`text-[11px] sm:text-xs mt-2 text-center truncate max-w-full transition-colors ${
-                    isSelected ? 'font-bold text-blue-700' : 'text-slate-600 group-hover:text-slate-900'
-                  }`}
-                  title={item.name}
-                >
+                {/* Assignee Name below bar */}
+                <span className="text-[10px] font-medium text-slate-600 mt-1.5 truncate max-w-[48px] text-center group-hover:text-blue-600 transition-colors">
                   {item.name}
                 </span>
               </div>

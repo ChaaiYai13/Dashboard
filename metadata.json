@@ -1,6 +1,6 @@
 {
-  "name": "ระบบติดตามงาน - Task Tracking System",
-  "description": "ระบบติดตามงาน (Task Tracking System) เชื่อมโยง Google Sheets และ Google Apps Script พร้อมแดชบอร์ดสรุปภาพรวม กราฟสถานะ และระบบแจ้งเตือนอัตโนมัติ",
+  "name": "Remix Remix ระบบติดตามงาน (Task Tracking System)",
+  "description": "ระบบติดตามงานและโครงการ เชื่อมโยง Google Sheets และ Google Apps Script พร้อมแดชบอร์ดสรุปผล กราฟสถิติ และการแจ้งเตือนอัตโนมัติ",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

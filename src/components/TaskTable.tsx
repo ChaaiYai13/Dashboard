@@ -1,31 +1,31 @@
-import React, { useState } from 'react';
-import { 
-  Search, 
-  Filter, 
-  Edit3, 
-  Trash2, 
-  Check, 
-  ChevronLeft, 
-  ChevronRight,
+import React, { useState, useMemo } from 'react';
+import {
+  Search,
+  Filter,
+  Edit3,
+  Trash2,
   Plus,
-  Download,
-  SlidersHorizontal,
-  X
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
+  Mail,
+  ExternalLink,
+  AlertCircle,
+  ListChecks,
+  Clock,
+  UserCheck
 } from 'lucide-react';
-import { Task, TaskStatus, TaskPriority } from '../types/task';
+import { Task, TaskStatus } from '../types';
 
 interface TaskTableProps {
   tasks: Task[];
   onEditTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
   onAddNewTask: () => void;
-  selectedFilter: TaskStatus | 'ทั้งหมด';
-  setSelectedFilter: (status: TaskStatus | 'ทั้งหมด') => void;
-  selectedAssignee: string | null;
-  setSelectedAssignee: (assignee: string | null) => void;
-  selectedProject: string | null;
-  setSelectedProject: (project: string | null) => void;
-  onExportCSV: () => void;
+  onOpenSendEmailModal?: (task: Task) => void;
+  selectedStatusFilter?: TaskStatus | 'all';
+  onFilterChange?: (status: TaskStatus | 'all') => void;
 }
 
 export const TaskTable: React.FC<TaskTableProps> = ({
@@ -33,323 +33,355 @@ export const TaskTable: React.FC<TaskTableProps> = ({
   onEditTask,
   onDeleteTask,
   onAddNewTask,
-  selectedFilter,
-  setSelectedFilter,
-  selectedAssignee,
-  setSelectedAssignee,
-  selectedProject,
-  setSelectedProject,
-  onExportCSV,
+  onOpenSendEmailModal,
+  selectedStatusFilter = 'all',
+  onFilterChange,
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [internalStatusFilter, setInternalStatusFilter] = useState<string>(selectedStatusFilter);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  // Filter tasks based on all active criteria
-  const filteredTasks = tasks.filter((task) => {
-    // Search filter
-    const matchesSearch =
-      task.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.assignee.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.project.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.note.toLowerCase().includes(searchTerm.toLowerCase());
+  // Sync when prop changes
+  React.useEffect(() => {
+    setInternalStatusFilter(selectedStatusFilter);
+  }, [selectedStatusFilter]);
 
-    // Status filter
-    const matchesStatus =
-      selectedFilter === 'ทั้งหมด' ||
-      (selectedFilter === 'รอดำเนินการ'
-        ? task.status === 'รอดำเนินการ' || task.status === 'ยังไม่เริ่ม'
-        : task.status === selectedFilter);
+  const handleStatusFilterChange = (val: string) => {
+    setInternalStatusFilter(val);
+    onFilterChange?.(val as TaskStatus | 'all');
+    setCurrentPage(1);
+  };
 
-    // Assignee filter
-    const matchesAssignee = !selectedAssignee || task.assignee === selectedAssignee;
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((task) => {
+      const q = searchQuery.toLowerCase();
+      const matchesSearch =
+        task.title.toLowerCase().includes(q) ||
+        task.id.toLowerCase().includes(q) ||
+        task.assignee.toLowerCase().includes(q) ||
+        (task.backupAssignee && task.backupAssignee.toLowerCase().includes(q)) ||
+        (task.nextSteps && task.nextSteps.toLowerCase().includes(q)) ||
+        (task.issues && task.issues.toLowerCase().includes(q)) ||
+        (task.notes && task.notes.toLowerCase().includes(q));
 
-    // Project filter
-    const matchesProject = !selectedProject || task.project === selectedProject;
+      const matchesStatus =
+        internalStatusFilter === 'all' || task.status === internalStatusFilter;
 
-    return matchesSearch && matchesStatus && matchesAssignee && matchesProject;
-  });
+      return matchesSearch && matchesStatus;
+    });
+  }, [tasks, searchQuery, internalStatusFilter]);
 
   const totalPages = Math.ceil(filteredTasks.length / itemsPerPage) || 1;
-  const currentTasks = filteredTasks.slice(
+  const paginatedTasks = filteredTasks.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
   const getStatusBadge = (status: TaskStatus) => {
     switch (status) {
-      case 'กำลังดำเนินการ':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'เสร็จสิ้น':
-        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-100 text-emerald-800">
+            เสร็จสิ้น
+          </span>
+        );
+      case 'กำลังดำเนินการ':
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-100 text-blue-800">
+            กำลังดำเนินการ
+          </span>
+        );
       case 'เกินกำหนด':
-        return 'bg-rose-100 text-rose-800 border-rose-200';
-      case 'รอดำเนินการ':
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-rose-100 text-rose-800">
+            เกินกำหนด
+          </span>
+        );
       case 'ยังไม่เริ่ม':
-        return 'bg-amber-100 text-amber-800 border-amber-200';
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-100 text-amber-800">
+            ยังไม่เริ่ม
+          </span>
+        );
+      case 'รอดำเนินการ':
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-yellow-100 text-yellow-800">
+            รอดำเนินการ
+          </span>
+        );
       case 'ยกเลิก':
-        return 'bg-slate-100 text-slate-700 border-slate-200';
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-600">
+            ยกเลิก
+          </span>
+        );
       default:
-        return 'bg-slate-100 text-slate-700 border-slate-200';
+        return <span className="text-xs text-slate-600">{status}</span>;
     }
   };
 
-  const getPriorityColor = (priority: TaskPriority) => {
+  const getPriorityBadge = (priority: string) => {
     switch (priority) {
       case 'สูง':
-        return 'text-rose-600 font-bold';
+        return <span className="font-semibold text-rose-600">สูง</span>;
       case 'ปานกลาง':
-        return 'text-amber-700 font-medium';
+        return <span className="font-semibold text-amber-600">ปานกลาง</span>;
       case 'ต่ำ':
-        return 'text-emerald-700 font-medium';
+        return <span className="font-semibold text-emerald-600">ต่ำ</span>;
+      default:
+        return <span className="text-slate-600">{priority}</span>;
     }
-  };
-
-  const getProgressBarColor = (status: TaskStatus, progress: number) => {
-    if (status === 'เสร็จสิ้น' || progress === 100) return 'bg-[#2e7d32]';
-    if (status === 'เกินกำหนด') return 'bg-[#ef4444]';
-    if (status === 'รอดำเนินการ' || status === 'ยังไม่เริ่ม') return 'bg-[#f59e0b]';
-    return 'bg-[#1976d2]';
-  };
-
-  const hasActiveFilters =
-    selectedFilter !== 'ทั้งหมด' || selectedAssignee !== null || selectedProject !== null || searchTerm !== '';
-
-  const clearAllFilters = () => {
-    setSelectedFilter('ทั้งหมด');
-    setSelectedAssignee(null);
-    setSelectedProject(null);
-    setSearchTerm('');
-    setCurrentPage(1);
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
-      {/* Top Header & Search / Filter Controls */}
-      <div className="p-4 sm:p-5 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3">
+    <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+      {/* Header & Controls */}
+      <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <h2 className="text-lg font-bold text-slate-800 tracking-tight">รายการงาน</h2>
-          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 font-mono tabular-nums">
+          <h2 className="text-base font-bold text-slate-900 tracking-tight">
+            ตารางติดตามรายการหนังสือและภารกิจ
+          </h2>
+          <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md font-mono">
             {filteredTasks.length} รายการ
           </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Search Bar */}
-          <div className="relative min-w-[200px] sm:min-w-[240px]">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Search Box */}
+          <div className="relative flex-1 sm:w-64">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
-              placeholder="ค้นหางาน..."
-              value={searchTerm}
+              value={searchQuery}
               onChange={(e) => {
-                setSearchTerm(e.target.value);
+                setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-slate-800 placeholder-slate-400"
+              placeholder="ค้นหาเลขที่หนังสือ, รายการ, ผู้รับผิดชอบ..."
+              className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
             />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
           </div>
 
           {/* Status Dropdown Filter */}
           <select
-            value={selectedFilter}
-            onChange={(e) => {
-              setSelectedFilter(e.target.value as TaskStatus | 'ทั้งหมด');
-              setCurrentPage(1);
-            }}
-            aria-label="กรองสถานะงาน"
-            className="text-xs sm:text-sm py-1.5 px-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            value={internalStatusFilter}
+            onChange={(e) => handleStatusFilterChange(e.target.value)}
+            aria-label="กรองตามสถานะงาน"
+            className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer"
           >
-            <option value="ทั้งหมด">ทุกสถานะ</option>
-            <option value="กำลังดำเนินการ">กำลังดำเนินการ</option>
+            <option value="all">ทุกสถานะ</option>
             <option value="เสร็จสิ้น">เสร็จสิ้น</option>
-            <option value="รอดำเนินการ">รอดำเนินการ / ยังไม่เริ่ม</option>
+            <option value="กำลังดำเนินการ">กำลังดำเนินการ</option>
+            <option value="รอดำเนินการ">รอดำเนินการ</option>
+            <option value="ยังไม่เริ่ม">ยังไม่เริ่ม</option>
             <option value="เกินกำหนด">เกินกำหนด</option>
             <option value="ยกเลิก">ยกเลิก</option>
           </select>
 
-          {/* Export Button */}
-          <button
-            onClick={onExportCSV}
-            title="ส่งออก CSV"
-            className="p-2 text-slate-600 hover:text-emerald-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors cursor-pointer"
-          >
-            <Download className="w-4 h-4" />
-          </button>
-
-          {/* New Task Button */}
+          {/* Add Task Button */}
           <button
             onClick={onAddNewTask}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1976d2] hover:bg-blue-700 text-white rounded-lg text-xs sm:text-sm font-medium transition-colors shadow-2xs cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-xs cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">เพิ่มงานใหม่</span>
+            <Plus className="w-3.5 h-3.5" />
+            เพิ่มรายการ
           </button>
         </div>
       </div>
 
-      {/* Active Filter Badges Bar (if any) */}
-      {hasActiveFilters && (
-        <div className="bg-slate-50 px-4 py-2 border-b border-slate-200/70 flex flex-wrap items-center gap-2 text-xs">
-          <span className="text-slate-500 font-medium">ตัวกรองที่ใช้งาน:</span>
-          {selectedFilter !== 'ทั้งหมด' && (
-            <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-md flex items-center gap-1">
-              สถานะ: {selectedFilter}
-              <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedFilter('ทั้งหมด')} />
-            </span>
-          )}
-          {selectedAssignee && (
-            <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-md flex items-center gap-1">
-              ผู้รับผิดชอบ: {selectedAssignee}
-              <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedAssignee(null)} />
-            </span>
-          )}
-          {selectedProject && (
-            <span className="px-2 py-0.5 bg-purple-100 text-purple-800 rounded-md flex items-center gap-1">
-              โครงการ: {selectedProject}
-              <X className="w-3 h-3 cursor-pointer" onClick={() => setSelectedProject(null)} />
-            </span>
-          )}
-          {searchTerm && (
-            <span className="px-2 py-0.5 bg-slate-200 text-slate-800 rounded-md flex items-center gap-1">
-              คำค้น: "{searchTerm}"
-              <X className="w-3 h-3 cursor-pointer" onClick={() => setSearchTerm('')} />
-            </span>
-          )}
-          <button
-            onClick={clearAllFilters}
-            className="text-blue-600 hover:text-blue-800 font-medium ml-auto cursor-pointer"
-          >
-            ล้างตัวกรองทั้งหมด
-          </button>
-        </div>
-      )}
-
-      {/* Table Content */}
+      {/* Responsive Table */}
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs sm:text-sm">
-          <thead>
-            <tr className="bg-slate-50/70 border-b border-slate-200 text-slate-600 font-semibold">
-              <th className="py-3 px-4 font-semibold">รหัสงาน</th>
-              <th className="py-3 px-4 font-semibold">งาน/โครงการ</th>
-              <th className="py-3 px-4 font-semibold">ผู้รับผิดชอบ</th>
-              <th className="py-3 px-4 font-semibold whitespace-nowrap">วันที่เริ่ม</th>
-              <th className="py-3 px-4 font-semibold whitespace-nowrap">กำหนดส่ง</th>
-              <th className="py-3 px-4 font-semibold text-center">สถานะ</th>
-              <th className="py-3 px-4 font-semibold min-w-[140px]">% ความคืบหน้า</th>
-              <th className="py-3 px-4 font-semibold text-center">ความสำคัญ</th>
-              <th className="py-3 px-4 font-semibold">หมายเหตุ</th>
-              <th className="py-3 px-4 font-semibold text-right">จัดการ</th>
+        <table className="w-full text-xs text-left">
+          <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold select-none">
+            <tr>
+              <th className="py-3 px-3.5 font-medium whitespace-nowrap">เลขที่หนังสือ</th>
+              <th className="py-3 px-3.5 font-medium whitespace-nowrap min-w-[170px]">รายการ</th>
+              <th className="py-3 px-3.5 font-medium whitespace-nowrap">ผู้รับผิดชอบหลัก</th>
+              <th className="py-3 px-3.5 font-medium whitespace-nowrap">ผู้รับผิดชอบแทน</th>
+              <th className="py-3 px-3.5 font-medium whitespace-nowrap">วันที่รับ / มอบหมาย</th>
+              <th className="py-3 px-3.5 font-medium whitespace-nowrap">กำหนดส่ง</th>
+              <th className="py-3 px-3.5 font-medium text-center whitespace-nowrap">สถานะ</th>
+              <th className="py-3 px-3.5 font-medium whitespace-nowrap min-w-[110px]">% ความคืบหน้า</th>
+              <th className="py-3 px-3.5 font-medium text-center whitespace-nowrap">ความสำคัญ</th>
+              <th className="py-3 px-3.5 font-medium whitespace-nowrap min-w-[150px]">ขั้นตอนถัดไป / สิ่งที่ต้องทำ</th>
+              <th className="py-3 px-3.5 font-medium whitespace-nowrap min-w-[140px]">ปัญหา / สิ่งที่ต้องการช่วย</th>
+              <th className="py-3 px-3.5 font-medium whitespace-nowrap text-center">อัปเดตล่าสุด</th>
+              <th className="py-3 px-3.5 font-medium whitespace-nowrap text-center">ลิงก์ผลงาน</th>
+              <th className="py-3 px-3.5 font-medium whitespace-nowrap">หมายเหตุ</th>
+              <th className="py-3 px-3.5 font-medium text-center whitespace-nowrap">จัดการ</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {currentTasks.length > 0 ? (
-              currentTasks.map((t) => (
-                <tr
-                  key={t.id}
-                  className="hover:bg-slate-50/80 transition-colors group"
-                >
-                  {/* รหัสงาน */}
-                  <td className="py-3 px-4 font-mono font-semibold text-slate-800 whitespace-nowrap">
-                    {t.id}
-                  </td>
+            {paginatedTasks.map((task) => (
+              <tr
+                key={task.id}
+                className="hover:bg-slate-50/80 transition-colors group"
+              >
+                {/* 1. เลขที่หนังสือ */}
+                <td className="py-3 px-3.5 font-mono font-semibold text-slate-800 whitespace-nowrap">
+                  {task.id}
+                </td>
 
-                  {/* งาน/โครงการ */}
-                  <td className="py-3 px-4 font-medium text-slate-900">
-                    <div className="flex flex-col">
-                      <span>{t.title}</span>
-                      <span className="text-[11px] text-slate-400 font-normal">{t.project}</span>
-                    </div>
-                  </td>
+                {/* 2. รายการ */}
+                <td className="py-3 px-3.5 font-medium text-slate-900 min-w-[170px]">
+                  {task.title}
+                </td>
 
-                  {/* ผู้รับผิดชอบ */}
-                  <td className="py-3 px-4 text-slate-700 whitespace-nowrap">
-                    {t.assignee}
-                  </td>
+                {/* 3. ผู้รับผิดชอบหลัก */}
+                <td className="py-3 px-3.5 text-slate-700 whitespace-nowrap font-medium">
+                  {task.assignee}
+                </td>
 
-                  {/* วันที่เริ่ม */}
-                  <td className="py-3 px-4 font-mono tabular-nums text-slate-600 whitespace-nowrap">
-                    {t.startDate}
-                  </td>
-
-                  {/* กำหนดส่ง */}
-                  <td className="py-3 px-4 font-mono tabular-nums text-slate-600 whitespace-nowrap">
-                    {t.dueDate}
-                  </td>
-
-                  {/* สถานะ */}
-                  <td className="py-3 px-4 text-center whitespace-nowrap">
-                    <span
-                      className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getStatusBadge(
-                        t.status
-                      )}`}
-                    >
-                      {t.status}
+                {/* 4. ผู้รับผิดชอบแทน */}
+                <td className="py-3 px-3.5 text-slate-500 whitespace-nowrap">
+                  {task.backupAssignee ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
+                      <UserCheck className="w-3 h-3 text-slate-400" />
+                      {task.backupAssignee}
                     </span>
-                  </td>
+                  ) : (
+                    <span className="text-slate-300">-</span>
+                  )}
+                </td>
 
-                  {/* % ความคืบหน้า */}
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-300 ${getProgressBarColor(
-                            t.status,
-                            t.progress
-                          )}`}
-                          style={{ width: `${Math.min(100, Math.max(0, t.progress))}%` }}
-                        />
-                      </div>
-                      <span className="text-xs font-mono font-medium text-slate-600 tabular-nums w-8 text-right">
-                        {t.progress}%
-                      </span>
+                {/* 5. วันที่รับ / มอบหมาย */}
+                <td className="py-3 px-3.5 text-slate-500 whitespace-nowrap font-mono">
+                  {task.startDate}
+                </td>
+
+                {/* กำหนดส่ง */}
+                <td className="py-3 px-3.5 text-slate-600 whitespace-nowrap font-mono font-medium">
+                  {task.dueDate}
+                </td>
+
+                {/* สถานะ */}
+                <td className="py-3 px-3.5 text-center whitespace-nowrap">
+                  {getStatusBadge(task.status)}
+                </td>
+
+                {/* % ความคืบหน้า */}
+                <td className="py-3 px-3.5 whitespace-nowrap">
+                  <div className="flex items-center gap-2">
+                    <div className="w-16 bg-slate-100 rounded-full h-2 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${
+                          task.status === 'เสร็จสิ้น'
+                            ? 'bg-emerald-500'
+                            : task.status === 'เกินกำหนด'
+                            ? 'bg-rose-500'
+                            : task.progress > 50
+                            ? 'bg-blue-600'
+                            : 'bg-amber-500'
+                        }`}
+                        style={{ width: `${task.progress}%` }}
+                      />
                     </div>
-                  </td>
+                    <span className="font-mono text-slate-700 tabular-nums font-medium text-[11px]">
+                      {task.progress}%
+                    </span>
+                  </div>
+                </td>
 
-                  {/* ความสำคัญ */}
-                  <td className={`py-3 px-4 text-center whitespace-nowrap text-xs ${getPriorityColor(t.priority)}`}>
-                    {t.priority}
-                  </td>
+                {/* ความสำคัญ */}
+                <td className="py-3 px-3.5 text-center whitespace-nowrap">
+                  {getPriorityBadge(task.priority)}
+                </td>
 
-                  {/* หมายเหตุ */}
-                  <td className="py-3 px-4 text-slate-500 text-xs truncate max-w-[120px]">
-                    {t.note || '-'}
-                  </td>
+                {/* 6. ขั้นตอนถัดไป / สิ่งที่ต้องทำ */}
+                <td className="py-3 px-3.5 text-slate-700 max-w-[180px] truncate" title={task.nextSteps || '-'}>
+                  {task.nextSteps ? (
+                    <span className="flex items-center gap-1">
+                      <ListChecks className="w-3 h-3 text-blue-500 shrink-0" />
+                      <span className="truncate">{task.nextSteps}</span>
+                    </span>
+                  ) : (
+                    <span className="text-slate-300">-</span>
+                  )}
+                </td>
 
-                  {/* Action */}
-                  <td className="py-3 px-4 text-right whitespace-nowrap">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        onClick={() => onEditTask(t)}
-                        title="แก้ไขงาน"
-                        className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => onDeleteTask(t.id)}
-                        title="ลบงาน"
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            ) : (
+                {/* 7. ปัญหา / สิ่งที่ต้องการให้ช่วย */}
+                <td className="py-3 px-3.5 max-w-[160px] truncate" title={task.issues || '-'}>
+                  {task.issues && task.issues !== '-' && task.issues !== 'ไม่มีปัญหา' ? (
+                    <span className="flex items-center gap-1 text-rose-600">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span className="truncate">{task.issues}</span>
+                    </span>
+                  ) : (
+                    <span className="text-slate-400">{task.issues || '-'}</span>
+                  )}
+                </td>
+
+                {/* 8. วันที่อัปเดตล่าสุด */}
+                <td className="py-3 px-3.5 text-center whitespace-nowrap font-mono text-[11px] text-slate-500">
+                  {task.updatedAt || '-'}
+                </td>
+
+                {/* 9. ลิงก์ข้อมูล / ผลงาน */}
+                <td className="py-3 px-3.5 text-center whitespace-nowrap">
+                  {task.deliverableLink ? (
+                    <a
+                      href={task.deliverableLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium text-[11px] bg-blue-50 px-2 py-0.5 rounded border border-blue-200 hover:bg-blue-100 transition-colors"
+                      title={task.deliverableLink}
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      เปิดลิงก์
+                    </a>
+                  ) : (
+                    <span className="text-slate-300">-</span>
+                  )}
+                </td>
+
+                {/* 10. หมายเหตุ */}
+                <td className="py-3 px-3.5 text-slate-500 max-w-[140px] truncate" title={task.notes || '-'}>
+                  {task.notes || '-'}
+                </td>
+
+                {/* จัดการ (Actions) */}
+                <td className="py-3 px-3.5 text-center whitespace-nowrap">
+                  <div className="flex items-center justify-center gap-1">
+                    <button
+                      onClick={() => onOpenSendEmailModal?.(task)}
+                      className="p-1 rounded-md text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+                      title="ส่งอีเมลแจ้งเตือนงานนี้"
+                    >
+                      <Mail className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => onEditTask(task)}
+                      className="p-1 rounded-md text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+                      title="แก้ไขข้อมูล"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => onDeleteTask(task.id)}
+                      className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                      title="ลบรายการ"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+
+            {paginatedTasks.length === 0 && (
               <tr>
-                <td colSpan={10} className="py-8 text-center text-slate-500 text-sm">
-                  ไม่พบรายการงานที่ตรงกับเงื่อนไขการค้นหา
+                <td colSpan={15} className="py-12 text-center text-slate-400">
+                  <p className="text-sm">ไม่พบรายการที่ตรงกับเงื่อนไขการค้นหา</p>
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      handleStatusFilterChange('all');
+                    }}
+                    className="mt-2 text-xs text-blue-600 hover:underline cursor-pointer"
+                  >
+                    ล้างตัวกรองทั้งหมด
+                  </button>
                 </td>
               </tr>
             )}
@@ -358,32 +390,34 @@ export const TaskTable: React.FC<TaskTableProps> = ({
       </div>
 
       {/* Pagination Footer */}
-      <div className="p-4 border-t border-slate-200/80 flex items-center justify-between text-xs sm:text-sm text-slate-500">
-        <div>
-          แสดง {(currentPage - 1) * itemsPerPage + 1} -{' '}
-          {Math.min(currentPage * itemsPerPage, filteredTasks.length)} จาก {filteredTasks.length} รายการ
+      {filteredTasks.length > 0 && (
+        <div className="p-3 sm:px-5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+          <div>
+            แสดง {(currentPage - 1) * itemsPerPage + 1} -{' '}
+            {Math.min(currentPage * itemsPerPage, filteredTasks.length)} จาก{' '}
+            {filteredTasks.length} รายการ
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="p-1.5 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <span className="px-2 font-mono">
+              หน้า {currentPage} / {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="p-1.5 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
-
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="p-1.5 border border-slate-200 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <span className="px-3 py-1 font-mono tabular-nums font-semibold text-slate-700">
-            {currentPage} / {totalPages}
-          </span>
-          <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="p-1.5 border border-slate-200 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
